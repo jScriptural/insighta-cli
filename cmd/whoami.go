@@ -1,35 +1,30 @@
 package cmd
 
-
 import (
+	"fmt"
 	"insighta/internal/config"
 	"insighta/util"
-	"fmt"
 )
 
-
-func Whoami(){
-	cred,err := config.GetCredential();
+func Whoami() {
+	cred, err := config.GetCredential()
 	if err != nil {
 		fmt.Println("No user found")
-		return;
+		return
 	}
 
-	username := util.GetUsername(cred.AccessToken);
+	username := util.GetUsername(cred.AccessToken)
 
 	if username == "" {
 		fmt.Println("No user found")
-		return;
+		return
 	}
 	role := util.GetRole(cred.AccessToken)
 
-
-	fmt.Println("─────── INSIGHTA SESSION ───────")
+	fmt.Println("\n\n─────── INSIGHTA SESSION ───────")
 	fmt.Printf("👤 Username: @%s\n", username)
 	fmt.Printf("🛡️  Role:     %s\n", role)
 	fmt.Println("────────────────────────────────")
-
-
 
 	//fmt.Printf("📧 Email:    %s\n", email)
 	//fmt.Printf("\tUsername: @%v\n\tRole: %v\n",username,role);

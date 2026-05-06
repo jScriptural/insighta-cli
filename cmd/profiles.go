@@ -18,7 +18,6 @@ import (
 	"time"
 )
 
-
 func Profiles(args []string) {
 	//log.Printf("args: %#v\n", args)
 
@@ -42,7 +41,7 @@ func Profiles(args []string) {
 			os.Stderr.WriteString("Insufficient args to command 'get'\nUSAGE: insighta profiles get <id>")
 			return
 		}
-		Get(args[1]);
+		Get(args[1])
 	case "create":
 		if len(args) < 2 {
 			os.Stderr.WriteString("Insufficient flag to command 'create'\nUSAGE: insighta profiles create --name <name>")
@@ -65,21 +64,21 @@ func List(query string) {
 		nil,
 	)
 
-	WriteOutput(res,err,&models.Response{})
+	WriteOutput(res, err, &models.Response{})
 }
 
 func Search(args []string) {
 	backendURL := "http://localhost:3030/api/profiles/search"
 
-	query := url.Values{};
+	query := url.Values{}
 	switch len(args) {
 	case 0:
-		query = ParseArgs(args);
+		query = ParseArgs(args)
 	case 1:
-		query.Set("q",args[0]);
+		query.Set("q", args[0])
 	default:
 		query = ParseArgs(args[1:])
-		query.Set("q",args[0]);
+		query.Set("q", args[0])
 	}
 
 	res, err := SendRequest(
@@ -88,49 +87,47 @@ func Search(args []string) {
 		nil,
 	)
 
-	WriteOutput(res,err,&models.Response{})
+	WriteOutput(res, err, &models.Response{})
 }
 
-
-func Get(id string){
+func Get(id string) {
 	backendURL := "http://localhost:3030/api/profiles/"
-	res,err := SendRequest(
+	res, err := SendRequest(
 		http.MethodGet,
 		backendURL+id,
 		nil,
 	)
 
-	WriteOutput(res,err,&models.Response{})
+	WriteOutput(res, err, &models.Response{})
 }
-
 
 func Create(args []string) {
 	backendURL := "http://localhost:3030/api/profiles"
-	fs := flag.NewFlagSet("create",flag.ExitOnError);
-	name := fs.String("name","","Create profile for given name")
-	_ = fs.Bool("help",false,"insighta profiles create --name <name>")
+	fs := flag.NewFlagSet("create", flag.ExitOnError)
+	name := fs.String("name", "", "Create profile for given name")
+	_ = fs.Bool("help", false, "insighta profiles create --name <name>")
 
-	fs.Parse(args);
+	fs.Parse(args)
 	if *name == "" {
 		os.Stderr.WriteString("Bad call to create\nUSAGE: insighta profiles create --name <name>")
 		return
 	}
-	data := models.Name{Name: *name};
-	payload := &bytes.Buffer{};
+	data := models.Name{Name: *name}
+	payload := &bytes.Buffer{}
 	err := json.NewEncoder(payload).Encode(data)
 	if err != nil {
 		os.Stderr.WriteString("Fail to encode payload")
 		return
 	}
 
-	res,err := SendRequest(
+	res, err := SendRequest(
 		http.MethodPost,
 		backendURL,
 		payload,
 	)
 
 	//d := []models.Profile{}
-	WriteOutput(res,err,&models.Response{});
+	WriteOutput(res, err, &models.Response{})
 }
 
 func RefreshSession(t string) (*config.Credential, error) {
@@ -181,7 +178,6 @@ func RefreshSession(t string) (*config.Credential, error) {
 	return cred, nil
 }
 
-
 func SendRequest(method string, url string, payload io.Reader) (*http.Response, error) {
 	client := &http.Client{}
 	cred, err := config.GetCredential()
@@ -190,7 +186,8 @@ func SendRequest(method string, url string, payload io.Reader) (*http.Response, 
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+
+	//defer cancel()
 
 	req, err := http.NewRequestWithContext(
 		ctx,
@@ -199,15 +196,16 @@ func SendRequest(method string, url string, payload io.Reader) (*http.Response, 
 		payload,
 	)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
-	req.Header.Set("Accept", "application/json")
 	req.Header.Set("X-API-Version", "1")
 	req.Header.Set("Authorization", "Bearer "+cred.AccessToken)
 
 	res, err := client.Do(req)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
@@ -226,11 +224,9 @@ func SendRequest(method string, url string, payload io.Reader) (*http.Response, 
 	return res, err
 }
 
-
-
-func WriteOutput(res *http.Response, err error, data any){
+func WriteOutput(res *http.Response, err error, data any) {
 	if err != nil {
-		os.Stderr.WriteString(err.Error())
+		fmt.Fprintf(os.Stderr, "\n%v\n", err)
 		return
 	}
 	defer res.Body.Close()
@@ -238,28 +234,28 @@ func WriteOutput(res *http.Response, err error, data any){
 	//data := &models.Response{}
 	errRes := models.ErrResponse{}
 
-
-	if res.StatusCode > 308{
+	if res.StatusCode > 308 {
 		if err := json.NewDecoder(res.Body).Decode(&errRes); err != nil {
 			log.Printf("Error decoding response: %v", err)
 			return
 		}
-		os.Stderr.WriteString(errRes.Message)
+		fmt.Fprintf(os.Stderr, "\n\033[1;31Error\033[0m:%v\n", errRes.Message)
 		return
 	}
 
 	if err := json.NewDecoder(res.Body).Decode(data); err != nil {
-		os.Stderr.WriteString(err.Error())
+		fmt.Fprintf(os.Stderr, "\n\033[1;31Error\033[0m:%v\n", err)
 		return
 	}
 
-	if err := json.NewEncoder(os.Stdout).Encode(data); err != nil {
-		os.Stderr.WriteString(err.Error())
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", " ")
+	if err := enc.Encode(data); err != nil {
+		fmt.Fprintf(os.Stderr, "\n\033[1;31Error\033[0m:%v\n", err)
 		return
 	}
 
 }
-
 
 func ParseArgs(args []string) url.Values {
 	fs := flag.NewFlagSet("profiles", flag.ExitOnError)
@@ -274,6 +270,7 @@ func ParseArgs(args []string) url.Values {
 	minCountryProb := fs.Float64("min-country-probability", -1, "minimum country probability to return")
 	sortBy := fs.String("sort-by", "age", "criteria to sort the return profiles")
 	order := fs.String("order", "DESC", "criteria to order the return profiles")
+	format := fs.String("format", "", "file format: support csv and json")
 	page := fs.Int("page", 1, "pagination")
 	limit := fs.Int("limit", 10, "limit per page")
 
@@ -314,10 +311,11 @@ func ParseArgs(args []string) url.Values {
 	if *countryName != "" {
 		query.Set("country_name", *countryName)
 	}
-
+	if *format != "" {
+		query.Set("format", *format)
+	}
 	query.Set("page", strconv.Itoa(*page))
 	query.Set("limit", strconv.Itoa(*limit))
 
 	return query
 }
-

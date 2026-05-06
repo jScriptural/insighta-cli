@@ -2,17 +2,17 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/pkg/browser"
 	"insighta/internal/auth"
 	"insighta/internal/config"
 	"insighta/util"
 	"log"
 	"net/http"
 	"time"
-	"context"
-	"github.com/pkg/browser"
 )
 
 func Login(clientID string, backendURL string) {
@@ -21,9 +21,9 @@ func Login(clientID string, backendURL string) {
 	url := fmt.Sprintf("https://github.com/login/oauth/authorize?client_id=%s&code_challenge=%s&code_challenge_method=S256&scope=user", clientID, challenge)
 
 	fmt.Println("Opening browser for Github login...")
-	err := browser.OpenURL(url);
+	err := browser.OpenURL(url)
 	if err != nil {
-		log.Printf("browser: %v",err)
+		log.Printf("browser: %v", err)
 		fmt.Printf("Please open this URL: %s\n", url)
 	}
 
@@ -34,14 +34,14 @@ func Login(clientID string, backendURL string) {
 		code := r.URL.Query().Get("code")
 		if code != "" {
 			fmt.Fprintf(w, "Authentication successful: Return to your terminal.")
-		}else {
+		} else {
 			fmt.Fprintf(w, "Authentication Failed: Return to your terminal.")
 		}
 		codeChan <- code
 	})
 
 	go srv.ListenAndServe()
-	var code string;
+	var code string
 	select {
 	case <-time.After(1 * time.Hour):
 	case code = <-codeChan:
@@ -63,19 +63,18 @@ func Login(clientID string, backendURL string) {
 		log.Fatal(err)
 	}
 
-	username := util.GetUsername(cred.AccessToken);
-	if username == ""{
-		log.Println("Login Failed");
+	username := util.GetUsername(cred.AccessToken)
+	if username == "" {
+		log.Println("Login Failed")
 		return
 	}
-	fmt.Printf("Login successful: @%v\n",username)
+	fmt.Printf("\nLogin successful: @%v\n", username)
 }
-
 
 func exchangeCodeWithBackend(code, verifier, backendURL string) (config.Credential, error) {
 	client := &http.Client{Timeout: 20 * time.Second}
 
-	ctx, cancelFunc := context.WithTimeout(context.Background(), 20 * time.Second)
+	ctx, cancelFunc := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancelFunc()
 
 	data := struct {
@@ -117,6 +116,3 @@ func exchangeCodeWithBackend(code, verifier, backendURL string) (config.Credenti
 
 	return cred, nil
 }
-
-
-
